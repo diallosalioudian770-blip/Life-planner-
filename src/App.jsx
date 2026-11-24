@@ -18,7 +18,7 @@ import Year from './pages/Year.jsx';
 import Review from './pages/Review.jsx';
 import Space from './pages/Space.jsx';
 import Settings from './pages/Settings.jsx';
-import Auth from './pages/Auth.jsx';
+import Auth, { NewPassword } from './pages/Auth.jsx';
 import { fmtDay, today } from './lib/date.js';
 
 function useTheme() {
@@ -197,6 +197,7 @@ export default function App() {
   const s = useSession();
   useTheme();
   if (!s.ready) return null;
+  if (s.recovery && s.user) return <><NewPassword /><DialogHost /></>;
   if (s.configured && !s.user && s.mode !== 'local') return <><Auth /><DialogHost /></>;
   return <HashRouter><Shell /></HashRouter>;
 }

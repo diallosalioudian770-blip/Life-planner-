@@ -43,6 +43,21 @@ async function addItem({ title, date = TODAY, start, duration, category, subject
   await p.waitForTimeout(150);
 }
 
+// 0. écran de connexion (si Supabase est configuré dans le build)
+await p.goto(BASE);
+await p.waitForTimeout(400);
+const local = p.getByRole('button', { name: /Continuer sans compte/ });
+if (await local.count()) {
+  const email = p.getByLabel('Adresse e-mail');
+  ok('0. Connexion : e-mail sans majuscule/correction auto', (await email.getAttribute('autocapitalize')) === 'none' && (await email.getAttribute('autocorrect')) === 'off');
+  await p.getByRole('button', { name: 'Afficher le mot de passe' }).click();
+  ok('0. Connexion : afficher le mot de passe', (await p.locator('input[autocomplete=current-password]').getAttribute('type')) === 'text');
+  await p.getByRole('button', { name: 'Mot de passe oublié' }).click();
+  ok('0. Connexion : écran mot de passe oublié', await p.getByRole('button', { name: 'Envoyer le lien' }).count() === 1);
+  await p.getByRole('button', { name: "J'ai déjà un compte" }).click();
+  await local.click();
+}
+
 // 1. ajout
 await go('jour');
 await addItem({ title: 'Compta chapitre 2', start: '10:00', duration: 60, category: 'etudes', subject: 'sub-compta', type: 'revision' });
@@ -229,6 +244,7 @@ const mp = await m.newPage();
 const merr = [];
 mp.on('pageerror', (e) => merr.push(e.message));
 await mp.goto(BASE + '#/'); await mp.waitForTimeout(400);
+if (await mp.getByRole('button', { name: /Continuer sans compte/ }).count()) { await mp.getByRole('button', { name: /Continuer sans compte/ }).click(); await mp.waitForTimeout(200); }
 ok('12. Mobile : barre de navigation du bas', await mp.locator('.bottom-nav').isVisible());
 await mp.getByRole('button', { name: 'Ajouter une activité' }).tap();
 await mp.getByRole('dialog').getByLabel('Nom', { exact: true }).fill('Tâche iPhone');

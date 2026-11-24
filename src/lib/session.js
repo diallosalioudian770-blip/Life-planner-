@@ -55,6 +55,7 @@ export async function boot() {
   document.addEventListener('visibilitychange', () => { if (document.hidden) { emergencySave(); store.flush(); } else engine?.sync(); });
   startNotifier(store);
 
+  const wasRecovery = /type=recovery/.test(location.hash + location.search);
   const sb = getClient();
   const localMode = localStorage.getItem('lp:mode') === 'local';
   set({ configured: !!sb });
@@ -64,9 +65,11 @@ export async function boot() {
   const { data } = await sb.auth.getSession();
   if (data?.session?.user) await onSignedIn(data.session.user);
   else set({ ready: true, mode: localMode ? 'local' : null });
+  if (wasRecovery && data?.session) set({ recovery: true });
 
   sb.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_IN' && session?.user && session.user.id !== state.user?.id) onSignedIn(session.user);
+    if (event === 'PASSWORD_RECOVERY') set({ recovery: true });
     if (event === 'SIGNED_OUT') set({ user: null, mode: null, sync: { state: 'local' } });
   });
   setInterval(() => engine.sync(), 30000);
@@ -100,21 +103,29 @@ async function onSignedIn(user) {
   if (!store.get('settings', 'main')) seed(); // brand-new account
 }
 
+const cleanEmail = (e) => String(e || '').trim().toLowerCase();
+const redirect = () => location.origin + location.pathname;
 export async function signIn(email, password) {
-  const { error } = await getClient().auth.signInWithPassword({ email, password });
+  const { error } = await getClient().auth.signInWithPassword({ email: cleanEmail(email), password });
   if (error) throw new Error(translateAuth(error.message));
 }
 export async function signUp(email, password) {
-  const { data, error } = await getClient().auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } });
+  const { data, error } = await getClient().auth.signUp({ email: cleanEmail(email), password, options: { emailRedirectTo: redirect() } });
   if (error) throw new Error(translateAuth(error.message));
   return !data.session; // true = e-mail confirmation required
 }
 export async function resetPassword(email) {
-  const { error } = await getClient().auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  const { error } = await getClient().auth.resetPasswordForEmail(cleanEmail(email), { redirectTo: redirect() });
   if (error) throw new Error(translateAuth(error.message));
 }
 export async function updatePassword(password) {
   const { error } = await getClient().auth.updateUser({ password });
+  if (error) throw new Error(translateAuth(error.message));
+  set({ recovery: false });
+}
+export const endRecovery = () => set({ recovery: false });
+export async function resendConfirmation(email) {
+  const { error } = await getClient().auth.resend({ type: 'signup', email: cleanEmail(email), options: { emailRedirectTo: redirect() } });
   if (error) throw new Error(translateAuth(error.message));
 }
 export async function signOut() {
@@ -132,8 +143,11 @@ export function useLocalOnly() {
 export const syncNow = () => engine?.sync();
 
 function translateAuth(m) {
-  if (/Invalid login/i.test(m)) return 'E-mail ou mot de passe incorrect.';
-  if (/Email not confirmed/i.test(m)) return "Ton adresse e-mail n'est pas encore confirmée : ouvre le lien reçu par e-mail.";
+  if (/Invalid login/i.test(m)) return "E-mail ou mot de passe incorrect. Si tu n'as jamais confirmé ton compte, ou si tu n'es pas sûre qu'il existe, crée-le à nouveau ou utilise « Mot de passe oublié ».";
+  if (/rate limit|too many|security purposes/i.test(m)) return "Trop d'e-mails ou de tentatives en peu de temps. Attends quelques minutes puis réessaie.";
+  if (/sending.*email|smtp/i.test(m)) return "Supabase n'a pas réussi à envoyer l'e-mail.";
+  if (/same.*password|different from the old/i.test(m)) return "Le nouveau mot de passe doit être différent de l'ancien.";
+  if (/Email not confirmed/i.test(m)) return "NOT_CONFIRMED";
   if (/already registered/i.test(m)) return 'Un compte existe déjà avec cette adresse.';
   if (/Password should be/i.test(m)) return 'Le mot de passe doit contenir au moins 6 caractères.';
   if (/fetch/i.test(m)) return 'Connexion impossible : vérifie ta connexion Internet.';
