@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { HashRouter, Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Home as HomeIcon, Sun, CalendarDays, CalendarRange, Calendar, Settings as Gear, Plus, Bell, Menu, Cloud, CloudOff, RefreshCw, AlertTriangle, HardDrive, X } from 'lucide-react';
 import { useStore, store } from './lib/store.js';
@@ -38,10 +39,50 @@ function useTheme() {
   useEffect(() => { document.title = settings.appName || 'Life Planner'; }, [settings.appName]);
 }
 
+export function explainSyncError(msg = '') {
+  if (/permission denied|42501/i.test(msg)) return "Supabase refuse l'accès à la table. Il faut exécuter le petit complément SQL (droits d'accès) dans Supabase › SQL Editor.";
+  if (/row-level security|violates row/i.test(msg)) return "La sécurité de la table (RLS) bloque l'enregistrement. Le schéma SQL doit être réappliqué.";
+  if (/relation .*records.* does not exist|Could not find the table|schema cache|PGRST20/i.test(msg)) return "La table « records » est introuvable. Le schéma SQL n'a pas été appliqué sur ce projet Supabase.";
+  if (/JWT|token|401|Invalid API key|apikey/i.test(msg)) return "Ta session ou la clé publique n'est pas acceptée. Déconnecte-toi puis reconnecte-toi.";
+  if (/fetch|network|Load failed|timeout/i.test(msg)) return "Le serveur Supabase ne répond pas (connexion ou panne chez Supabase). Réessaie dans quelques minutes.";
+  return null;
+}
+
+function SyncPanel({ onClose }) {
+  const s = useSession();
+  const pending = useStore((st) => st.pendingCount());
+  const nav = useNavigate();
+  const err = s.sync?.error;
+  const hint = err ? explainSyncError(err) : null;
+  return (
+    <div className="drawer" role="dialog" aria-label="Synchronisation">
+      <div className="modal-head"><h3>Synchronisation</h3><button className="btn ghost icon sm" onClick={onClose} aria-label="Fermer"><X size={18} /></button></div>
+      <div className="modal-body stack" style={{ overflowY: 'auto' }} data-testid="sync-panel">
+        <p className="small">Compte : <strong>{s.user?.email}</strong></p>
+        <p className="small">État : <strong>{{ ok: 'synchronisé', syncing: 'synchronisation en cours…', pending: 'modifications en attente', offline: 'hors ligne', error: 'erreur' }[s.sync?.state] || '—'}</strong></p>
+        <p className="small">Modifications en attente d'envoi : <strong>{pending}</strong></p>
+        {s.sync?.lastSync && <p className="small muted">Dernière synchro réussie : {new Date(s.sync.lastSync).toLocaleString('fr-FR')}</p>}
+        {err && (
+          <div className="banner" role="alert" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+            {hint && <div style={{ marginBottom: 6 }}>{hint}</div>}
+            <div className="xs" style={{ wordBreak: 'break-word', opacity: 0.85 }}>Détail technique : {err}</div>
+          </div>
+        )}
+        <p className="xs muted">Tes données restent enregistrées sur cet appareil même en cas d'erreur. Rien n'est perdu.</p>
+        <div className="row wrap" style={{ gap: 8 }}>
+          <button className="btn primary" onClick={() => syncNow()} disabled={s.sync?.state === 'syncing'}><RefreshCw size={15} />Réessayer maintenant</button>
+          <button className="btn" onClick={() => { nav('/parametres#compte'); onClose(); }}>Mon compte</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SyncPill() {
   const s = useSession();
   const pending = useStore((st) => st.pendingCount());
   const nav = useNavigate();
+  const [open, setOpen] = useState(false);
   if (!s.user) {
     return <button className="sync-pill" onClick={() => nav('/parametres#compte')} title="Données enregistrées uniquement sur cet appareil"><HardDrive size={13} />Sur cet appareil</button>;
   }
@@ -54,7 +95,12 @@ function SyncPill() {
     error: [<AlertTriangle size={13} key="i" />, 'Erreur de synchro', 'error'],
   };
   const [icon, label, cls] = map[st] || [<Cloud size={13} key="i" />, pending ? `${pending} en attente` : 'Synchronisé', ''];
-  return <button className={'sync-pill ' + cls} onClick={() => syncNow()} title={s.sync?.error ? `${s.sync.error} — touche pour réessayer` : 'Toucher pour synchroniser maintenant'}>{icon}{label}</button>;
+  return (
+    <>
+      <button className={'sync-pill ' + cls} data-testid="sync-pill" onClick={() => { setOpen(true); if (st !== 'syncing') syncNow(); }}>{icon}{label}</button>
+      {open && createPortal(<SyncPanel onClose={() => setOpen(false)} />, document.body)}
+    </>
+  );
 }
 
 function Reminders({ onClose }) {

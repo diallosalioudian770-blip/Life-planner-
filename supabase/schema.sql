@@ -16,6 +16,11 @@ create index if not exists records_user_updated_idx on public.records (user_id, 
 
 alter table public.records enable row level security;
 
+-- Droits d'accès explicites pour les utilisatrices connectées (les nouveaux projets
+-- Supabase n'exposent plus forcément les tables automatiquement).
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on table public.records to authenticated;
+
 drop policy if exists "records_select_own" on public.records;
 drop policy if exists "records_insert_own" on public.records;
 drop policy if exists "records_update_own" on public.records;

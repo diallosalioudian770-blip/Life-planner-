@@ -87,7 +87,7 @@ export function createSync(store, getSb, { onStatus = () => {} } = {}) {
         const pulled = await pull(sb);
         set({ state: store.pendingCount() ? 'pending' : 'ok', lastSync: new Date().toISOString(), error: null, pushed, pulled });
       } catch (e) {
-        set({ state: 'error', error: e?.message || String(e) });
+        set({ state: 'error', error: [e?.code, e?.message || String(e), e?.hint].filter(Boolean).join(' · ') });
       } finally {
         running = null;
       }
