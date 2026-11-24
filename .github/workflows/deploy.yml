@@ -17,10 +17,7 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm test
-      - run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+      - run: npm run build   # lit .env.production (valeurs publiques Supabase)
       - uses: actions/upload-pages-artifact@v3
         with: { path: dist }
   deploy:
