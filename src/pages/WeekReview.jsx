@@ -75,7 +75,7 @@ export default function WeekReview() {
       <div className="grid g2 mb">
         <div className="card">
           <div className="card-head"><h3>Heures par catégorie</h3></div>
-          {Object.keys(st.byCat).length ? <PlanActualChart groups={cats.filter((c) => st.byCat[c.id]).map((c) => ({ label: c.name.split(' ')[0], a: st.byCat[c.id].plannedMin / 60, b: st.byCat[c.id].actualMin / 60 }))} format={(v) => `${Math.round(v * 10) / 10}h`} /> : <Empty>Pas encore de données.</Empty>}
+          {Object.keys(st.byCat).length ? <PlanActualChart groups={cats.filter((c) => st.byCat[c.id]).map((c) => ({ label: c.name, a: st.byCat[c.id].plannedMin / 60, b: st.byCat[c.id].actualMin / 60 }))} format={(v) => `${Math.round(v * 10) / 10}h`} /> : <Empty>Pas encore de données.</Empty>}
         </div>
         <div className="card">
           <div className="card-head"><h3>Tâches validées par jour</h3></div>
@@ -110,7 +110,7 @@ export default function WeekReview() {
         {Object.values(study).some((s) => s.plannedMin || s.actualMin) && (
           <div className="mt">
             <h4 className="mb" style={{ marginBottom: 8 }}>Études, par matière</h4>
-            <PlanActualChart groups={store.list('subjects').filter((s) => study[s.id].plannedMin || study[s.id].actualMin || s.weeklyGoalMin).map((s) => ({ label: s.name.split(' ')[0], a: (s.weeklyGoalMin || study[s.id].plannedMin) / 60, b: study[s.id].actualMin / 60 }))} labels={['Objectif / prévu', 'Réalisé']} format={(v) => `${Math.round(v * 10) / 10}h`} />
+            <PlanActualChart groups={store.list('subjects').filter((s) => study[s.id].plannedMin || study[s.id].actualMin || s.weeklyGoalMin).map((s) => ({ label: s.name, a: (s.weeklyGoalMin || study[s.id].plannedMin) / 60, b: study[s.id].actualMin / 60 }))} labels={['Objectif / prévu', 'Réalisé']} format={(v) => `${Math.round(v * 10) / 10}h`} />
           </div>
         )}
       </div>

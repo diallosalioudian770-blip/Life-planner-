@@ -1,4 +1,20 @@
-import { useState } from 'react';
+import { useState, useRef, useLayoutEffect } from 'react';
+
+// Draw charts at their real pixel width so text keeps the same size everywhere.
+function useWidth(fallback = 520) {
+  const ref = useRef(null);
+  const [w, setW] = useState(fallback);
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    const el = ref.current;
+    const set = () => setW(Math.max(260, Math.round(el.clientWidth)));
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w];
+}
 
 // Small dependency-free SVG charts. Two-series charts always use the same pair:
 // "prévu" in a recessive neutral and "réalisé" in the primary ink, with a legend.
@@ -22,7 +38,8 @@ const niceMax = (v) => {
 // groups: [{label, a (prévu), b (réalisé)}]
 export function PlanActualChart({ groups, format = (v) => v, height = 200, labels = ['Prévu', 'Réalisé'] }) {
   const [tip, setTip] = useState(null);
-  const W = Math.max(320, groups.length * 64);
+  const [wrap, cw] = useWidth();
+  const W = Math.max(cw, groups.length * 64);
   const H = height;
   const pad = { l: 34, r: 8, t: 10, b: 34 };
   const max = niceMax(Math.max(1, ...groups.flatMap((g) => [g.a, g.b])));
@@ -36,8 +53,8 @@ export function PlanActualChart({ groups, format = (v) => v, height = 200, label
         <span><i className="dot" style={{ background: 'var(--surface-3)', border: '1px solid var(--muted)' }} />{labels[0]}</span>
         <span><i className="dot" style={{ background: 'var(--primary)' }} />{labels[1]}</span>
       </div>
-      <div style={{ position: 'relative', overflowX: 'auto' }} onMouseLeave={() => setTip(null)}>
-        <svg className="chart" viewBox={`0 0 ${W} ${H}`} style={{ minWidth: Math.min(W, 520) }} role="img" aria-label="Graphique prévu et réalisé">
+      <div ref={wrap} style={{ position: 'relative', overflowX: 'auto' }} onMouseLeave={() => setTip(null)}>
+        <svg className="chart" width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ width: W, maxWidth: 'none' }} role="img" aria-label="Graphique prévu et réalisé">
           {ticks.map((t) => (
             <g key={t}>
               <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="var(--border)" strokeDasharray={t ? '3 4' : ''} />
@@ -60,7 +77,7 @@ export function PlanActualChart({ groups, format = (v) => v, height = 200, label
                     </g>
                   );
                 })}
-                <text x={cx} y={H - pad.b + 16} textAnchor="middle">{g.label.length > 10 ? g.label.slice(0, 9) + '…' : g.label}</text>
+                <text x={cx} y={H - pad.b + 16} textAnchor="middle">{g.label.length > Math.floor(gw / 7) ? g.label.slice(0, Math.max(3, Math.floor(gw / 7) - 1)) + '…' : g.label}</text>
               </g>
             );
           })}
@@ -74,7 +91,8 @@ export function PlanActualChart({ groups, format = (v) => v, height = 200, label
 // single series vertical bars: [{label, value}]
 export function Bars({ data, format = (v) => v, height = 160, color = 'var(--primary)', name = 'Valeur' }) {
   const [tip, setTip] = useState(null);
-  const W = Math.max(300, data.length * 40);
+  const [wrap, cw] = useWidth();
+  const W = Math.max(cw, data.length * 40);
   const H = height;
   const pad = { l: 34, r: 6, t: 10, b: 28 };
   const max = niceMax(Math.max(1, ...data.map((d) => d.value)));
@@ -82,8 +100,8 @@ export function Bars({ data, format = (v) => v, height = 160, color = 'var(--pri
   const bw = Math.min(26, gw * 0.6);
   const y = (v) => pad.t + (H - pad.t - pad.b) * (1 - v / max);
   return (
-    <div style={{ position: 'relative', overflowX: 'auto' }} onMouseLeave={() => setTip(null)}>
-      <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={name}>
+    <div ref={wrap} style={{ position: 'relative', overflowX: 'auto' }} onMouseLeave={() => setTip(null)}>
+      <svg className="chart" width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ width: W, maxWidth: 'none' }} role="img" aria-label={name}>
         {[0, max / 2, max].map((t) => (
           <g key={t}>
             <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="var(--border)" strokeDasharray={t ? '3 4' : ''} />
@@ -126,15 +144,16 @@ export function HBars({ data, format = (v) => v, max: forcedMax }) {
 // line over time: [{label, value}]
 export function Line({ data, format = (v) => v, height = 150, name = 'Évolution' }) {
   const [hover, setHover] = useState(null);
-  const W = 520, H = height, pad = { l: 34, r: 10, t: 12, b: 26 };
+  const [wrap, W] = useWidth();
+  const H = height, pad = { l: 34, r: 10, t: 12, b: 26 };
   const vals = data.map((d) => d.value).filter((v) => v != null);
   const max = niceMax(Math.max(1, ...vals));
   const x = (i) => pad.l + ((W - pad.l - pad.r) * i) / Math.max(1, data.length - 1);
   const y = (v) => pad.t + (H - pad.t - pad.b) * (1 - v / max);
   const pts = data.map((d, i) => (d.value == null ? null : [x(i), y(d.value)])).filter(Boolean);
   return (
-    <div style={{ position: 'relative' }} onMouseLeave={() => setHover(null)}>
-      <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={name}
+    <div ref={wrap} style={{ position: 'relative' }} onMouseLeave={() => setHover(null)}>
+      <svg className="chart" width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={name}
         onMouseMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); const px = ((e.clientX - r.left) / r.width) * W; const i = Math.round(((px - pad.l) / (W - pad.l - pad.r)) * (data.length - 1)); if (i >= 0 && i < data.length) setHover(i); }}>
         {[0, max / 2, max].map((t) => (
           <g key={t}><line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="var(--border)" strokeDasharray={t ? '3 4' : ''} /><text x={pad.l - 6} y={y(t) + 4} textAnchor="end">{format(t)}</text></g>

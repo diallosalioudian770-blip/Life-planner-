@@ -113,7 +113,7 @@ export default function Review() {
 
       <div className="grid g2 mb">
         <div className="card"><div className="card-head"><h3>Progression universitaire</h3></div>
-          <PlanActualChart groups={subjects.map((s) => ({ label: s.name.split(' ')[0], a: a.study[s.id].plannedMin / 60, b: a.study[s.id].actualMin / 60 }))} format={(v) => `${Math.round(v * 10) / 10}h`} />
+          <PlanActualChart groups={subjects.map((s) => ({ label: s.name, a: a.study[s.id].plannedMin / 60, b: a.study[s.id].actualMin / 60 }))} format={(v) => `${Math.round(v * 10) / 10}h`} />
           <div className="stack-sm mt">
             {subjects.map((s) => { const p = chapterProgress(s); const avg = gradeAverage(store.list('grades').filter((g) => g.subjectId === s.id && g.date >= from && g.date <= to)); return (
               <div key={s.id} className="row between small"><span>{s.name}</span><span className="muted">{p != null ? `chapitres ${Math.round(p * 100)} %` : 'aucun chapitre'} · {avg != null ? `${avg.toFixed(1)}/20` : 'pas de note'}</span></div>

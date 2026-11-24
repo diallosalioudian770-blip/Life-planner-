@@ -150,7 +150,7 @@ function Shell() {
   const [bell, setBell] = useState(false);
   const [more, setMore] = useState(false);
   const loc = useLocation();
-  useEffect(() => { window.scrollTo(0, 0); }, [loc.pathname]);
+  useEffect(() => { window.scrollTo(0, 0); setMore(false); }, [loc.pathname]);
   const dueCount = useStore(() => computeReminders(store).filter((r) => r.when.getTime() <= Date.now() && r.when.getTime() > Date.now() - 86400000).length);
   return (
     <div className="app">

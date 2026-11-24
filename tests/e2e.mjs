@@ -220,6 +220,7 @@ await p2.waitForTimeout(200);
 const after = await p2.locator('[data-testid=week-block]').count();
 ok('Suggestions : proposées sans rien modifier, puis acceptées une à une', nSugg > 0 && afterOpen === before && after === before + 1, `${nSugg} propositions, ${before}→${after}`);
 
+if (process.env.SHOTDIR) for (const r of ['', 'jour', 'semaine', 'semaine/bilan', 'mois', 'annee', 'espace/etudes', 'espace/finances', 'espace/habitudes']) { await p2.goto(BASE + '#/' + r); await p2.waitForTimeout(300); await p2.screenshot({ path: `${process.env.SHOTDIR}/d-${r.replace(/\//g, '_') || 'home'}.png` }); }
 console.log('Erreurs JS (bureau) :', errors.length ? errors : 'aucune');
 
 // 12. mobile (iPhone)
@@ -243,6 +244,7 @@ await mp.locator('.bottom-nav').getByText('Plus').tap();
 ok('12. Mobile : menu des espaces', await mp.getByRole('link', { name: 'Études & révisions' }).isVisible());
 console.log('Erreurs JS (mobile) :', merr.length ? merr : 'aucune');
 
+if (process.env.SHOTDIR) for (const r of ['', 'jour', 'semaine', 'mois']) { await mp.goto(BASE + '#/' + r); await mp.waitForTimeout(300); await mp.screenshot({ path: `${process.env.SHOTDIR}/m-${r || 'home'}.png` }); }
 await b.close();
 for (const r of results) console.log(r.join('  '));
 const failed = results.filter((r) => r[0] !== 'OK ').length;

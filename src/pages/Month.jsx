@@ -57,7 +57,6 @@ export default function Month() {
         <button className="btn icon" aria-label="Mois suivant" onClick={() => go(addMonths(from, 1))}><ChevronRight size={18} /></button>
         <Link className="btn primary" to={`/bilan?m=${monthKey(from)}`}><BarChart3 size={16} />Bilan du mois</Link>
       </PageHead>
-      <div className="mb"><MonthIndicators from={from} to={to} /></div>
       <div className="grid cols-2-1">
         <div>
           <div className="month-grid" data-testid="month-grid">
@@ -81,6 +80,7 @@ export default function Month() {
             })}
           </div>
           <p className="xs muted mt hide-mobile">Glisse une activité vers un autre jour pour la déplacer. Double-clic sur un jour pour ajouter.</p>
+          <div className="mt"><MonthIndicators from={from} to={to} /></div>
         </div>
         <div className="stack">
           <div className="card" data-testid="day-detail">
